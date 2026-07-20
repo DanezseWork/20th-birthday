@@ -19,16 +19,14 @@
 <body>
   <div id="app">
     <div id="bottom-ui" class="bottom-ui">
+      <div id="nav-prev-wrap" class="nav-wrap hidden">
+        <button type="button" id="nav-prev" class="nav-btn nav-btn--prev" aria-label="Previous page"></button>
+        <span class="nav-hint" id="nav-prev-hint">tap to close</span>
+      </div>
       <p class="hint" id="hint">tap letter to open</p>
-      <div class="nav-row">
-        <div id="nav-prev-wrap" class="nav-wrap hidden">
-          <button type="button" id="nav-prev" class="nav-btn nav-btn--prev" aria-label="Previous page"></button>
-          <span class="nav-hint" id="nav-prev-hint">tap to close</span>
-        </div>
-        <div id="nav-next-wrap" class="nav-wrap hidden">
-          <button type="button" id="nav-next" class="nav-btn nav-btn--next" aria-label="Next page"></button>
-          <span class="nav-hint" id="nav-next-hint">tap for next</span>
-        </div>
+      <div id="nav-next-wrap" class="nav-wrap hidden">
+        <button type="button" id="nav-next" class="nav-btn nav-btn--next" aria-label="Next page"></button>
+        <span class="nav-hint" id="nav-next-hint">tap for next</span>
       </div>
     </div>
     <div id="canvas-wrap"></div>

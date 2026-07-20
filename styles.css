@@ -37,16 +37,17 @@ body {
 
 .bottom-ui {
   position: absolute;
-  bottom: max(12%, calc(env(safe-area-inset-bottom, 0px) + 2rem));
+  bottom: max(18%, calc(env(safe-area-inset-bottom, 0px) + 3.5rem));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: center;
+  gap: 1rem;
   z-index: 10;
-  width: min(100%, 22rem);
-  padding: 0 1.25rem;
+  width: min(100%, 24rem);
+  padding: 0 1.25rem 1.35rem;
 }
 
 .hint {
@@ -59,14 +60,7 @@ body {
   transition: opacity 0.6s ease;
   white-space: nowrap;
   text-align: center;
-}
-
-.nav-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 4.5rem;
-  width: 100%;
+  flex: 0 1 auto;
 }
 
 .hint.hidden {
@@ -74,19 +68,24 @@ body {
 }
 
 .nav-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-  transition: opacity 0.4s ease;
+  position: relative;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  transition: opacity 0.4s ease, width 0.4s ease;
 }
 
 .nav-wrap.hidden {
   opacity: 0;
   pointer-events: none;
+  width: 0;
 }
 
 .nav-hint {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 50%;
+  transform: translateX(-50%);
   font-family: "Cormorant Garamond", Georgia, serif;
   font-size: 0.62rem;
   letter-spacing: 0.18em;
@@ -136,10 +135,10 @@ body {
 
 @media (max-width: 640px) {
   .bottom-ui {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 3.25rem);
-    gap: 0.55rem;
-    width: min(100%, 18rem);
-    padding: 0 1rem;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 5rem);
+    gap: 0.65rem;
+    width: min(100%, 20rem);
+    padding: 0 0.75rem 1.25rem;
   }
 
   .hint {
@@ -147,13 +146,18 @@ body {
     letter-spacing: 0.12em;
   }
 
-  .nav-row {
-    gap: 3.25rem;
-  }
-
   .nav-hint {
     font-size: 0.58rem;
     letter-spacing: 0.12em;
+  }
+
+  .nav-wrap {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .nav-wrap.hidden {
+    width: 0;
   }
 
   .nav-btn {
