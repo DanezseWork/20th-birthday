@@ -72,7 +72,7 @@ const camera = new THREE.PerspectiveCamera(
 
 // ── initial camera view — edit these in script.js ────────────
 const VIEW = {
-  radius: 8,                        // zoom out/in (higher = further)
+  radius: 9,                        // zoom out/in (higher = further)
   theta: 0,                        // rotate left/right (radians)
   phi: 2.3,                          // tilt up/down (radians)
   target: new THREE.Vector3(0, 0, 0), // where the camera looks
