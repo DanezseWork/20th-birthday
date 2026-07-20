@@ -3,6 +3,8 @@ import * as THREE from "three";
 const CARD_W = 2.5;
 const CARD_H = 3.4;
 const THICK = 0.014;
+const PAPER_EDGE_COLOR = 0x6b5c64;
+const PAPER_EDGE_OPACITY = 0.95;
 const FULL_OPEN = Math.PI * 0.92;
 const SLIGHT_OPEN = 0.03;
 const FRONT_TEXT_W = CARD_W * 0.78;
@@ -156,27 +158,59 @@ function solidPaper(w, h) {
   const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, THICK), mat);
   group.add(body);
 
+  const edgeMat = new THREE.LineBasicMaterial({
+    color: PAPER_EDGE_COLOR,
+    transparent: true,
+    opacity: PAPER_EDGE_OPACITY,
+    depthTest: true,
+  });
+
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, THICK)),
-    new THREE.LineBasicMaterial({ color: 0xd4ced4, transparent: true, opacity: 0.6 })
+    edgeMat
   );
   group.add(edges);
+
+  // Front-face border — reads clearly when the letter is flat against the white background.
+  const z = THICK / 2 + 0.001;
+  const hw = w / 2;
+  const hh = h / 2;
+  const faceBorder = new THREE.LineLoop(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-hw, -hh, z),
+      new THREE.Vector3(hw, -hh, z),
+      new THREE.Vector3(hw, hh, z),
+      new THREE.Vector3(-hw, hh, z),
+    ]),
+    edgeMat
+  );
+  group.add(faceBorder);
 
   return group;
 }
 
-function finishTextTexture(tex) {
+function finishTextTexture(tex, { mipmaps = false } = {}) {
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.minFilter = THREE.LinearFilter;
+  tex.generateMipmaps = mipmaps;
+  tex.minFilter = mipmaps ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
   tex.magFilter = THREE.LinearFilter;
   tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  tex.generateMipmaps = false;
   tex.needsUpdate = true;
   return tex;
 }
 
+const COVER_TEX_LOGICAL_W = 2048;
+const COVER_TEX_MAX_SCALE = 2;
+
+function coverTextureScale() {
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  const byViewport = (window.innerWidth * dpr) / COVER_TEX_LOGICAL_W;
+  return Math.min(COVER_TEX_MAX_SCALE, Math.max(1, byViewport));
+}
+
 function makeFrontCoverTexture() {
-  const texW = 2048;
+  const scale = coverTextureScale();
+  const texW = Math.round(COVER_TEX_LOGICAL_W * scale);
   const texH = Math.round(texW * (FRONT_TEXT_H / FRONT_TEXT_W));
   const c = document.createElement("canvas");
   c.width = texW;
@@ -185,11 +219,12 @@ function makeFrontCoverTexture() {
   ctx.clearRect(0, 0, texW, texH);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
+  ctx.scale(scale, scale);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  const cx = texW / 2;
-  const cy = texH / 2;
+  const cx = COVER_TEX_LOGICAL_W / 2;
+  const cy = texH / scale / 2;
 
   ctx.fillStyle = "#7a6b72";
   ctx.font = '400 118px "Cormorant Garamond", Georgia, serif';
@@ -201,8 +236,17 @@ function makeFrontCoverTexture() {
   ctx.letterSpacing = "0.04em";
   ctx.fillText("Trixie", cx, cy + 62);
 
-  return finishTextTexture(new THREE.CanvasTexture(c));
+  return finishTextTexture(new THREE.CanvasTexture(c), { mipmaps: true });
 }
+
+function refreshFrontCoverTexture() {
+  if (!frontCoverMat || !frontCoverFontsReady) return;
+  frontCoverMat.map?.dispose();
+  frontCoverMat.map = makeFrontCoverTexture();
+  frontCoverMat.needsUpdate = true;
+}
+
+let frontCoverFontsReady = false;
 
 function makePageTexture(pageIndex) {
   const texW = 512;
@@ -439,8 +483,8 @@ async function loadFrontCoverText() {
     document.fonts.load('400 118px "Cormorant Garamond"'),
     document.fonts.load('italic 500 168px "Cormorant Garamond"'),
   ]);
-  frontCoverMat.map = makeFrontCoverTexture();
-  frontCoverMat.needsUpdate = true;
+  frontCoverFontsReady = true;
+  refreshFrontCoverTexture();
 }
 
 loadFrontCoverText();
@@ -731,6 +775,7 @@ window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  refreshFrontCoverTexture();
 });
 
 animate();
