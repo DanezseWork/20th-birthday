@@ -83,7 +83,7 @@ const VIEW = {
 
 const FLAT_RADIUS = 7;
 const MOBILE_LAYOUT_MAX_WIDTH = 640;
-const PAN_DAMPING = 0.95;
+const PAN_DAMPING = 0.72;
 
 const panPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 const panHit = new THREE.Vector3();
@@ -165,6 +165,10 @@ function sphericalCameraPos(view) {
 
 function isMobileLayout() {
   return window.innerWidth <= MOBILE_LAYOUT_MAX_WIDTH;
+}
+
+function panDamping() {
+  return isMobileLayout() ? 0.62 : PAN_DAMPING;
 }
 
 /** Extra zoom-out and vertical framing when the open letter is viewed on a phone. */
@@ -885,8 +889,6 @@ const ray = new THREE.Raycaster();
 const ptr = new THREE.Vector2();
 let panning = false;
 let panPointerId = null;
-let panStartX = 0;
-let panStartY = 0;
 let grabHitX = 0;
 let grabHitY = 0;
 
@@ -928,10 +930,9 @@ function onPointerDown(e) {
 
     panning = true;
     panPointerId = e.pointerId;
-    panStartX = pan.x;
-    panStartY = pan.y;
     grabHitX = hit.x;
     grabHitY = hit.y;
+    if (e.pointerType === "touch") e.preventDefault();
     renderer.domElement.setPointerCapture(e.pointerId);
     renderer.domElement.style.cursor = "grabbing";
     return;
@@ -947,9 +948,14 @@ function onPointerMove(e) {
     const hit = getPanPlaneHit(e.clientX, e.clientY);
     if (!hit) return;
 
-    const damping = isMobileLayout() ? 1.08 : PAN_DAMPING;
-    pan.x = panStartX - (hit.x - grabHitX) * damping;
-    pan.y = panStartY - (hit.y - grabHitY) * damping;
+    const damping = panDamping();
+    const dx = (hit.x - grabHitX) * damping;
+    const dy = (hit.y - grabHitY) * damping;
+    pan.x -= dx;
+    pan.y -= dy;
+    grabHitX = hit.x;
+    grabHitY = hit.y;
+    if (e.pointerType === "touch") e.preventDefault();
     updateCamera();
     return;
   }
@@ -1002,8 +1008,8 @@ function openLetter() {
   setTimeout(() => burstFlowers(50), 750);
 }
 
-renderer.domElement.addEventListener("pointerdown", onPointerDown);
-renderer.domElement.addEventListener("pointermove", onPointerMove);
+renderer.domElement.addEventListener("pointerdown", onPointerDown, { passive: false });
+renderer.domElement.addEventListener("pointermove", onPointerMove, { passive: false });
 renderer.domElement.addEventListener("pointerup", onPointerUp);
 renderer.domElement.addEventListener("pointercancel", onPointerUp);
 
