@@ -14,28 +14,126 @@ const PAGE_H = CARD_H;
 const PAGE_FLIP_ANGLE = FULL_OPEN;
 const PAGE_BASE_Z = THICK / 2 + 0.002;
 const PAGE_STACK_STEP = 0.016;
+const PAGE_TEX_W = 512;
+const PAGE_PAD_X = 72;
 
 // Edit page content here — each page is an array of text lines.
 const PAGES = [
   [
-    { text: "Happy 20th Birthday,", color: "#8c7882", font: "400 46px Georgia, serif", y: 270 },
-    { text: "Trixie", color: "#c882a0", font: "italic 52px Georgia, serif", y: 330 },
-    { text: "Wishing you a day filled with joy,", color: "#a08f99", font: "400 24px Georgia, serif", y: 410 },
-    { text: "love, and beautiful moments.", color: "#a08f99", font: "400 24px Georgia, serif", y: 445 },
+    { text: "Hi Trixie,", color: "#c882a0", font: "italic 42px Georgia, serif", y: 185, leading: 50 },
+    {
+      text:
+        "Happy happy birthday! I want to start this off by appreciating you as a person, a friend, a churchmate, a daughter, and a sister. Truly, you have been such an amazing person not just to me, but to everyone around you.",
+      color: "#8c7882",
+      font: "400 21px Georgia, serif",
+      y: 248,
+      leading: 34,
+    },
+    {
+      text: 'I think the name "Joy" truly fits you as a person.',
+      color: "#a08f99",
+      font: "italic 22px Georgia, serif",
+      leading: 36,
+    },
   ],
   [
-    { text: "You bring so much light", color: "#8c7882", font: "400 32px Georgia, serif", y: 280 },
-    { text: "into every room you enter.", color: "#8c7882", font: "400 32px Georgia, serif", y: 325 },
-    { text: "Thank you for being", color: "#a08f99", font: "italic 28px Georgia, serif", y: 400 },
-    { text: "exactly who you are.", color: "#a08f99", font: "italic 28px Georgia, serif", y: 440 },
+    {
+      text:
+        'So with that, I would also like to pray for your joy on your very special day. May it be a day of joy and happy moments for you and your family. For this occasion, I do have something to give to you, a "present," so to speak. This is actually something that you have made me realize as well. And that is the value of the present moment. To quote one of my childhood movies:',
+      color: "#8c7882",
+      font: "400 18px Georgia, serif",
+      y: 158,
+      leading: 27,
+    },
+    {
+      text:
+        '"Yesterday is history, tomorrow is a mystery, but today is a gift. That is why it is called the present."',
+      color: "#a08f99",
+      font: "italic 18px Georgia, serif",
+      leading: 27,
+    },
+    {
+      text: "— some turtle",
+      color: "#c882a0",
+      font: "italic 17px Georgia, serif",
+      leading: 32,
+    },
   ],
   [
-    { text: "Here's to another year", color: "#8c7882", font: "400 32px Georgia, serif", y: 290 },
-    { text: "of adventures, laughter,", color: "#8c7882", font: "400 32px Georgia, serif", y: 335 },
-    { text: "and dreams coming true.", color: "#c882a0", font: "italic 34px Georgia, serif", y: 400 },
-    { text: "With love always ♥", color: "#a08f99", font: "400 26px Georgia, serif", y: 470 },
+    {
+      text:
+        "As someone who lacked placing value in special occasions in my life, I think this is a great reminder of how precious our lives really are. Which is why I give you this reminder to cherish where you are right now and what you've been through in life, good or bad.",
+      color: "#8c7882",
+      font: "400 18px Georgia, serif",
+      y: 158,
+      leading: 27,
+    },
+    {
+      text:
+        'As your friend and someone who considers you a best friend, this "present" isn\'t just a reminder of this current moment, but it is also my way of saying thank you, thank you for spending and sharing all those past present moments with me, and prayerfully for more present moments to come.',
+      color: "#8c7882",
+      font: "400 18px Georgia, serif",
+      leading: 27,
+    },
+  ],
+  [
+    {
+      text:
+        "I want to end this letter by thanking you for being you! Someone very thoughtful, funny, honest, and always ready to be there in times of need, yung tipong usapan bibili lang ng bulaklak haha.",
+      color: "#8c7882",
+      font: "400 18px Georgia, serif",
+      y: 158,
+      leading: 27,
+    },
+    {
+      text:
+        "With that, I leave you this verse that has helped an overthinker like me remain in the present moment.",
+      color: "#8c7882",
+      font: "400 18px Georgia, serif",
+      leading: 27,
+    },
+    {
+      text:
+        "'Therefore do not worry about tomorrow, for tomorrow will worry about itself. Each day has enough trouble of its own.'",
+      color: "#a08f99",
+      font: "italic 18px Georgia, serif",
+      leading: 27,
+    },
+    {
+      text: "Matthew 6:34 NIV",
+      color: "#c882a0",
+      font: "italic 17px Georgia, serif",
+      leading: 32,
+    },
+  ],
+  [
+    {
+      text: "I pray that all your goals may be fulfilled.",
+      color: "#8c7882",
+      font: "400 20px Georgia, serif",
+      y: 220,
+      leading: 34,
+    },
+    {
+      text: "Happy Birthday Trixie,",
+      color: "#c882a0",
+      font: "italic 28px Georgia, serif",
+      y: 320,
+      leading: 40,
+    },
+    {
+      text: "Daniel",
+      color: "#8c7882",
+      font: "400 26px Georgia, serif",
+      leading: 36,
+    },
   ],
 ];
+
+/** Hinged right sheets: PAGES[0], PAGES[2], PAGES[4]. Left cover spread uses PAGES[1] or PAGES[3]. */
+const FLIP_PAGE_COUNT = 3;
+const FLIP_PAGE_TEXTURE_INDEX = [0, 2, 4];
+const LEFT_SPREAD_TEXTURE_BY_VIEW = { 1: 1, 2: 3 };
 
 const PASTEL_PINKS = [
   0xffb7c5, 0xffc8dd, 0xffafcc, 0xf8bbd0, 0xf4acb7,
@@ -447,7 +545,53 @@ function createLeftPanelCake(coverGroup) {
   return { root, mesh, canvas, ctx, tex, animT: 0, enterT: 0, waitT: 0 };
 }
 
+function createLeftSpreadPage(coverGroup, texture) {
+  const mat = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(CARD_W, CARD_H), mat);
+  mesh.rotation.y = Math.PI;
+  mesh.renderOrder = 40;
+
+  const root = new THREE.Group();
+  root.position.set(0, 0, -(THICK / 2 + 0.003));
+  root.add(mesh);
+  coverGroup.add(root);
+  root.visible = false;
+
+  return { root, mat };
+}
+
 let leftPanelCake = null;
+let leftSpreadPage = null;
+
+function syncLeftSpreadPage() {
+  if (!leftSpreadPage) return;
+  const leftIndex = LEFT_SPREAD_TEXTURE_BY_VIEW[currentPage];
+  const show = pageGroup.visible && leftIndex != null && !pageAnim;
+  leftSpreadPage.root.visible = show;
+  leftSpreadPage.mat.visible = show;
+  if (show) {
+    const tex = pageTextures[leftIndex];
+    if (leftSpreadPage.mat.map !== tex) {
+      leftSpreadPage.mat.map = tex;
+      leftSpreadPage.mat.needsUpdate = true;
+    }
+    if (pageEntities.length) {
+      const ref = pageEntities[0].mat;
+      leftSpreadPage.mat.opacity = ref.opacity;
+      leftSpreadPage.mat.transparent = ref.transparent;
+      leftSpreadPage.mat.depthWrite = ref.depthWrite;
+    }
+  } else {
+    leftSpreadPage.mat.opacity = 0;
+  }
+  leftSpreadPage.mat.needsUpdate = true;
+}
 
 function updateLeftPanelCake(dt) {
   if (!leftPanelCake) return;
@@ -564,8 +708,25 @@ function refreshFrontCoverTexture() {
 
 let frontCoverFontsReady = false;
 
+function wrapPageTextLines(ctx, text, maxWidth) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    const trial = current ? `${current} ${word}` : word;
+    if (ctx.measureText(trial).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = trial;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
 function makePageTexture(pageIndex) {
-  const texW = 512;
+  const texW = PAGE_TEX_W;
   const texH = Math.round(texW * (CARD_H / CARD_W));
   const c = document.createElement("canvas");
   c.width = texW;
@@ -577,11 +738,25 @@ function makePageTexture(pageIndex) {
   ctx.textBaseline = "alphabetic";
 
   const scaleY = texH / 680;
+  const maxTextW = texW - PAGE_PAD_X * 2;
+  let cursorY = null;
 
   for (const line of PAGES[pageIndex]) {
     ctx.fillStyle = line.color;
     ctx.font = line.font;
-    ctx.fillText(line.text, texW / 2, line.y * scaleY);
+    const sublines = wrapPageTextLines(ctx, line.text, maxTextW);
+    const lineStep = (line.leading ?? 34) * scaleY;
+
+    if (cursorY === null) {
+      cursorY = (line.y ?? 185) * scaleY;
+    } else if (line.y != null) {
+      cursorY = Math.max(line.y * scaleY, cursorY);
+    }
+
+    for (const subline of sublines) {
+      ctx.fillText(subline, texW / 2, cursorY);
+      cursorY += lineStep;
+    }
   }
 
   const tex = new THREE.CanvasTexture(c);
@@ -623,12 +798,19 @@ function setPagesOpacity(opacity) {
     mat.depthWrite = opacity >= 0.99;
     mat.needsUpdate = true;
   }
+  if (leftSpreadPage) {
+    const spreadShown = LEFT_SPREAD_TEXTURE_BY_VIEW[currentPage] != null;
+    leftSpreadPage.mat.opacity = spreadShown ? opacity : 0;
+    leftSpreadPage.mat.transparent = opacity < 1 || !spreadShown;
+    leftSpreadPage.mat.depthWrite = spreadShown && opacity >= 0.99;
+    leftSpreadPage.mat.needsUpdate = true;
+  }
   pageGroup.visible = opacity > 0.01;
   syncPageVisibility();
 }
 
 function syncPageVisibility() {
-  for (let i = 0; i < PAGES.length; i++) {
+  for (let i = 0; i < FLIP_PAGE_COUNT; i++) {
     const { group } = pageEntities[i];
     let show = false;
 
@@ -643,6 +825,7 @@ function syncPageVisibility() {
 
     group.visible = show;
   }
+  syncLeftSpreadPage();
 }
 
 // ── card — pivot at centre, matches sketch ───────────────────
@@ -677,7 +860,7 @@ card.add(pageGroup);
 const pageHinges = [];
 const pageEntities = [];
 
-for (let i = 0; i < PAGES.length; i++) {
+for (let i = 0; i < FLIP_PAGE_COUNT; i++) {
   const hinge = new THREE.Group();
   hinge.position.set(-PAGE_W / 2, 0, 0);
   pageGroup.add(hinge);
@@ -686,14 +869,14 @@ for (let i = 0; i < PAGES.length; i++) {
   leaf.position.set(PAGE_W / 2, 0, 0);
   hinge.add(leaf);
 
-  const entity = makePageEntity(pageTextures[i]);
+  const entity = makePageEntity(pageTextures[FLIP_PAGE_TEXTURE_INDEX[i]]);
   leaf.add(entity.group);
   pageHinges.push(hinge);
   pageEntities.push(entity);
 }
 
 function syncPageStack() {
-  for (let i = 0; i < PAGES.length; i++) {
+  for (let i = 0; i < FLIP_PAGE_COUNT; i++) {
     const hinge = pageHinges[i];
 
     if (!pageAnim || i !== pageAnim.flipIndex) {
@@ -701,9 +884,9 @@ function syncPageStack() {
     }
 
     if (pageAnim && i === pageAnim.flipIndex) {
-      hinge.position.z = (PAGES.length - 1) * PAGE_STACK_STEP;
+      hinge.position.z = (FLIP_PAGE_COUNT - 1) * PAGE_STACK_STEP;
     } else if (i >= currentPage) {
-      hinge.position.z = (PAGES.length - 1 - i) * PAGE_STACK_STEP;
+      hinge.position.z = (FLIP_PAGE_COUNT - 1 - i) * PAGE_STACK_STEP;
     } else {
       hinge.position.z = -(currentPage - i) * PAGE_STACK_STEP * 0.5;
     }
@@ -734,14 +917,14 @@ function finishPageFlip() {
 function updateNav() {
   const show = opened && !opening && !closing && openT >= 1 && !pageAnim;
   navPrevWrap.classList.toggle("hidden", !show);
-  navNextWrap.classList.toggle("hidden", !show || currentPage >= PAGES.length - 1);
+  navNextWrap.classList.toggle("hidden", !show || currentPage >= FLIP_PAGE_COUNT - 1);
   navPrevHint.textContent = currentPage > 0 ? "tap for back" : "tap to close";
   navNextHint.textContent = "tap for next";
   navPrev.setAttribute("aria-label", currentPage > 0 ? "Previous page" : "Close letter");
 }
 
 function goToPage(index) {
-  if (index < 0 || index >= PAGES.length || index === currentPage || pageAnim || closing) return;
+  if (index < 0 || index >= FLIP_PAGE_COUNT || index === currentPage || pageAnim || closing) return;
 
   const forward = index > currentPage;
   const flipIndex = forward ? currentPage : index;
@@ -823,6 +1006,7 @@ crease.position.set(-CARD_W / 2 + 0.004, 0, 0);
 coverGroup.add(crease);
 
 leftPanelCake = createLeftPanelCake(coverGroup);
+leftSpreadPage = createLeftSpreadPage(coverGroup, pageTextures[1]);
 
 // start slightly open
 coverHinge.rotation.y = -FULL_OPEN * SLIGHT_OPEN;
