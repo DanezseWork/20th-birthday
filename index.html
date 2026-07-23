@@ -20,65 +20,67 @@
 <body>
   <div id="app">
     <div id="bottom-ui" class="bottom-ui">
-      <div id="nav-prev-wrap" class="nav-wrap hidden">
-        <button type="button" id="nav-prev" class="nav-btn nav-btn--prev" aria-label="Previous page"></button>
-        <span class="nav-hint" id="nav-prev-hint">tap to close</span>
-      </div>
-      <div class="hint-center">
-        <p class="hint" id="hint">tap letter to open</p>
-        <button
-          type="button"
-          id="music-toggle"
-          class="music-btn hidden"
-          aria-label="Turn music off"
-          aria-pressed="true"
-        >
-          <svg class="music-icon music-icon--on" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.45"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M10 6.5 6.5 9.25v5.5L10 17.5V6.5z"
-            />
-            <path
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.45"
-              stroke-linecap="round"
-              d="M13.5 10a2 2 0 0 1 0 4"
-            />
-            <path
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.45"
-              stroke-linecap="round"
-              d="M16 8.5a4.5 4.5 0 0 1 0 7"
-            />
-          </svg>
-          <svg class="music-icon music-icon--off" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.45"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M10 6.5 6.5 9.25v5.5L10 17.5V6.5z"
-            />
-            <path
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.45"
-              stroke-linecap="round"
-              d="M14.5 10.5 19 15M19 10.5 14.5 15"
-            />
-          </svg>
-        </button>
-      </div>
-      <div id="nav-next-wrap" class="nav-wrap hidden">
-        <button type="button" id="nav-next" class="nav-btn nav-btn--next" aria-label="Next page"></button>
-        <span class="nav-hint" id="nav-next-hint">tap for next</span>
+      <div class="bottom-ui-inner">
+        <div id="nav-prev-wrap" class="nav-wrap hidden">
+          <button type="button" id="nav-prev" class="nav-btn nav-btn--prev" aria-label="Previous page"></button>
+          <span class="nav-hint" id="nav-prev-hint">tap to close</span>
+        </div>
+        <div class="hint-center">
+          <p class="hint" id="hint">tap letter to open</p>
+          <button
+            type="button"
+            id="music-toggle"
+            class="music-btn hidden"
+            aria-label="Turn music off"
+            aria-pressed="true"
+          >
+            <svg class="music-icon music-icon--on" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.45"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M10 6.5 6.5 9.25v5.5L10 17.5V6.5z"
+              />
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.45"
+                stroke-linecap="round"
+                d="M13.5 10a2 2 0 0 1 0 4"
+              />
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.45"
+                stroke-linecap="round"
+                d="M16 8.5a4.5 4.5 0 0 1 0 7"
+              />
+            </svg>
+            <svg class="music-icon music-icon--off" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.45"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M10 6.5 6.5 9.25v5.5L10 17.5V6.5z"
+              />
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.45"
+                stroke-linecap="round"
+                d="M14.5 10.5 19 15M19 10.5 14.5 15"
+              />
+            </svg>
+          </button>
+        </div>
+        <div id="nav-next-wrap" class="nav-wrap hidden">
+          <button type="button" id="nav-next" class="nav-btn nav-btn--next" aria-label="Next page"></button>
+          <span class="nav-hint" id="nav-next-hint">tap for next</span>
+        </div>
       </div>
     </div>
     <div id="canvas-wrap"></div>

@@ -86,6 +86,8 @@ const PAN_DAMPING = .55;
 
 const panPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 const panHit = new THREE.Vector3();
+/** Shift card so the open spread fold (spine) sits on the view center when flat. */
+const OPEN_LETTER_SHIFT_X = CARD_W / 2;
 
 let opened = false;
 let openT = 0;
@@ -176,6 +178,7 @@ function updateCamera() {
       camera.position.copy(flatPos);
       camera.lookAt(flatTarget);
     }
+    syncOpenLetterShift();
     return;
   }
 
@@ -187,9 +190,8 @@ function updateCamera() {
     target.z + radius * sinP * Math.cos(theta)
   );
   camera.lookAt(target);
+  syncOpenLetterShift();
 }
-
-updateCamera();
 
 // ── materials ────────────────────────────────────────────────
 function paperMat() {
@@ -622,6 +624,11 @@ function syncPageVisibility() {
 const card = new THREE.Group();
 scene.add(card);
 
+function syncOpenLetterShift() {
+  const t = opened && !closing ? easeOut(flatT) : 0;
+  card.position.x = OPEN_LETTER_SHIFT_X * t;
+}
+
 const letterMeshes = [];
 
 function addLetterMesh(mesh) {
@@ -794,6 +801,8 @@ leftPanelCake = createLeftPanelCake(coverGroup);
 
 // start slightly open
 coverHinge.rotation.y = -FULL_OPEN * SLIGHT_OPEN;
+
+updateCamera();
 
 // ── flowers ──────────────────────────────────────────────────
 const flowers = [];
@@ -1015,6 +1024,7 @@ function animate() {
       resetPages();
       coverHinge.rotation.y = -FULL_OPEN * SLIGHT_OPEN;
       pan = { x: 0, y: 0 };
+      card.position.x = 0;
       updateCamera();
       updateNav();
     }
