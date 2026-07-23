@@ -82,7 +82,8 @@ const VIEW = {
 };
 
 const FLAT_RADIUS = 7;
-const PAN_DAMPING = .55;
+const MOBILE_LAYOUT_MAX_WIDTH = 640;
+const PAN_DAMPING = 0.95;
 
 const panPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 const panHit = new THREE.Vector3();
@@ -162,10 +163,30 @@ function sphericalCameraPos(view) {
   );
 }
 
+function isMobileLayout() {
+  return window.innerWidth <= MOBILE_LAYOUT_MAX_WIDTH;
+}
+
+/** Extra zoom-out and vertical framing when the open letter is viewed on a phone. */
+function flatViewTuning() {
+  if (!isMobileLayout()) {
+    return { radius: FLAT_RADIUS, yOffset: 0 };
+  }
+
+  const aspect = window.innerHeight / Math.max(window.innerWidth, 1);
+  const portraitBoost = aspect > 1.15 ? 1.2 : 0;
+  return {
+    radius: FLAT_RADIUS + 2.8 + portraitBoost,
+    yOffset: 0.42 + portraitBoost * 0.12,
+  };
+}
+
 function updateCamera() {
   if (opened) {
-    const flatPos = new THREE.Vector3(pan.x, pan.y, FLAT_RADIUS);
-    const flatTarget = new THREE.Vector3(pan.x, pan.y, 0);
+    const { radius, yOffset } = flatViewTuning();
+    const viewY = pan.y - yOffset;
+    const flatPos = new THREE.Vector3(pan.x, viewY, radius);
+    const flatTarget = new THREE.Vector3(pan.x, viewY, 0);
 
     if (flatT < 1 && flatStartView) {
       const e = easeOut(flatT);
@@ -926,8 +947,9 @@ function onPointerMove(e) {
     const hit = getPanPlaneHit(e.clientX, e.clientY);
     if (!hit) return;
 
-    pan.x = panStartX - (hit.x - grabHitX) * PAN_DAMPING;
-    pan.y = panStartY - (hit.y - grabHitY) * PAN_DAMPING;
+    const damping = isMobileLayout() ? 1.08 : PAN_DAMPING;
+    pan.x = panStartX - (hit.x - grabHitX) * damping;
+    pan.y = panStartY - (hit.y - grabHitY) * damping;
     updateCamera();
     return;
   }
@@ -1086,6 +1108,7 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   refreshFrontCoverTexture();
+  updateCamera();
 });
 
 animate();

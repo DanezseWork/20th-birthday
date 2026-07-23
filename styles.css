@@ -206,14 +206,14 @@ body {
 
 @media (max-width: 640px) {
   .bottom-ui {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 5rem);
+    bottom: max(24%, calc(env(safe-area-inset-bottom, 0px) + 8rem));
     width: min(100%, 22rem);
-    padding: 0 0.5rem 1.25rem;
+    padding: 0 0.5rem 0.75rem;
   }
 
   .bottom-ui-inner {
     column-gap: 0.45rem;
-    padding: 2.25rem 0.85rem 1.75rem;
+    padding: 2rem 0.75rem 1.55rem;
     border-radius: 1.1rem;
   }
 
