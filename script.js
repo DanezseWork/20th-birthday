@@ -110,22 +110,20 @@ const PAGES = [
     {
       text: "I pray that all your goals may be fulfilled.",
       color: "#8c7882",
-      font: "400 20px Georgia, serif",
-      y: 220,
-      leading: 34,
+      font: "400 19px Georgia, serif",
+      leading: 30,
     },
     {
       text: "Happy Birthday Trixie,",
       color: "#c882a0",
-      font: "italic 28px Georgia, serif",
-      y: 320,
-      leading: 40,
+      font: "italic 26px Georgia, serif",
+      leading: 38,
     },
     {
       text: "Daniel",
       color: "#8c7882",
-      font: "400 26px Georgia, serif",
-      leading: 36,
+      font: "400 24px Georgia, serif",
+      leading: 32,
     },
   ],
 ];
@@ -134,6 +132,7 @@ const PAGES = [
 const FLIP_PAGE_COUNT = 3;
 const FLIP_PAGE_TEXTURE_INDEX = [0, 2, 4];
 const LEFT_SPREAD_TEXTURE_BY_VIEW = { 1: 1, 2: 3 };
+const PAGE5_PHOTO_SRC = "images/trixie-page5.png";
 
 const PASTEL_PINKS = [
   0xffb7c5, 0xffc8dd, 0xffafcc, 0xf8bbd0, 0xf4acb7,
@@ -569,10 +568,38 @@ function createLeftSpreadPage(coverGroup, texture) {
 let leftPanelCake = null;
 let leftSpreadPage = null;
 
+function leftSpreadViewKey() {
+  if (pageAnim) {
+    if (LEFT_SPREAD_TEXTURE_BY_VIEW[pageAnim.to] != null) return pageAnim.to;
+    return null;
+  }
+  if (LEFT_SPREAD_TEXTURE_BY_VIEW[currentPage] != null) return currentPage;
+  return null;
+}
+
+/** Spread pairs stay blank during flip; both sides show only when the spread view is settled. */
+function spreadPairState(flipIndex) {
+  if (LEFT_SPREAD_TEXTURE_BY_VIEW[flipIndex] == null) {
+    return { visible: true, fade: 1 };
+  }
+  if (!pageGroup.visible) return { visible: false, fade: 0 };
+  if (leftSpreadViewKey() !== flipIndex) return { visible: false, fade: 0 };
+  if (pageAnim) return { visible: false, fade: 0 };
+  return { visible: true, fade: 1 };
+}
+
+function shouldShowSpreadRight(flipIndex) {
+  return spreadPairState(flipIndex).visible;
+}
+
 function syncLeftSpreadPage() {
   if (!leftSpreadPage) return;
-  const leftIndex = LEFT_SPREAD_TEXTURE_BY_VIEW[currentPage];
-  const show = pageGroup.visible && leftIndex != null && !pageAnim;
+  const viewKey = leftSpreadViewKey();
+  const leftIndex = viewKey != null ? LEFT_SPREAD_TEXTURE_BY_VIEW[viewKey] : null;
+  const pair = viewKey != null ? spreadPairState(viewKey) : { visible: false, fade: 0 };
+  const show = pageGroup.visible && leftIndex != null && pair.visible;
+  const fade = pair.fade;
+
   leftSpreadPage.root.visible = show;
   leftSpreadPage.mat.visible = show;
   if (show) {
@@ -583,14 +610,33 @@ function syncLeftSpreadPage() {
     }
     if (pageEntities.length) {
       const ref = pageEntities[0].mat;
-      leftSpreadPage.mat.opacity = ref.opacity;
-      leftSpreadPage.mat.transparent = ref.transparent;
-      leftSpreadPage.mat.depthWrite = ref.depthWrite;
+      leftSpreadPage.mat.opacity = ref.opacity * fade;
+      leftSpreadPage.mat.transparent = ref.transparent || fade < 1;
+      leftSpreadPage.mat.depthWrite = ref.depthWrite && fade >= 0.99;
     }
   } else {
     leftSpreadPage.mat.opacity = 0;
   }
   leftSpreadPage.mat.needsUpdate = true;
+}
+
+function syncSpreadRightMaterials() {
+  const baseOpacity = pageEntities[0]?.mat.opacity ?? 1;
+  for (let i = 0; i < FLIP_PAGE_COUNT; i++) {
+    if (LEFT_SPREAD_TEXTURE_BY_VIEW[i] == null) continue;
+    const { mat, group } = pageEntities[i];
+    const pair = spreadPairState(i);
+    if (!pair.visible || !group.visible) {
+      mat.opacity = 0;
+      mat.transparent = true;
+      mat.depthWrite = false;
+    } else {
+      mat.opacity = baseOpacity * pair.fade;
+      mat.transparent = baseOpacity < 1 || pair.fade < 1;
+      mat.depthWrite = baseOpacity >= 0.99 && pair.fade >= 0.99;
+    }
+    mat.needsUpdate = true;
+  }
 }
 
 function updateLeftPanelCake(dt) {
@@ -725,7 +771,259 @@ function wrapPageTextLines(ctx, text, maxWidth) {
   return lines;
 }
 
+let page5Photo = null;
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  const rad = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rad, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rad);
+  ctx.arcTo(x + w, y + h, x, y + h, rad);
+  ctx.arcTo(x, y + h, x, y, rad);
+  ctx.arcTo(x, y, x + w, y, rad);
+  ctx.closePath();
+}
+
+/** Photo on page 5; returns canvas Y for text below (alphabetic baseline). */
+function page5PhotoLayout(texW, scaleY, img) {
+  const sidePad = PAGE_PAD_X + 8;
+  const maxW = texW - sidePad * 2;
+  let w = maxW;
+  let h = (img.height / img.width) * w;
+  const maxH = 200 * scaleY;
+  if (h > maxH) {
+    h = maxH;
+    w = (img.width / img.height) * h;
+  }
+  const matPad = 7;
+  const blockH = (matPad + 2) * 2 + h + matPad + 18 * scaleY;
+  return { w, h, matPad, blockH };
+}
+
+function measurePage5TextHeight(ctx, scaleY, maxTextW) {
+  let height = 0;
+  let first = true;
+  for (const line of PAGES[4]) {
+    if (!first) height += (line.leading ?? 34) * scaleY * 0.45;
+    first = false;
+    ctx.font = line.font;
+    const sublines = wrapPageTextLines(ctx, line.text, maxTextW);
+    height += sublines.length * (line.leading ?? 34) * scaleY;
+  }
+  return height;
+}
+
+function drawPage5PhotoFrame(ctx, texW, scaleY, img, topY) {
+  const { w, h, matPad } = page5PhotoLayout(texW, scaleY, img);
+  const x = (texW - w) / 2;
+  const y = topY;
+  const radius = 14 * (texW / PAGE_TEX_W);
+  const outerR = radius + 5;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(180, 120, 140, 0.28)";
+  ctx.shadowBlur = 14 * (texW / PAGE_TEX_W);
+  ctx.shadowOffsetY = 4;
+  roundRectPath(ctx, x - matPad - 2, y - matPad - 2, w + (matPad + 2) * 2, h + (matPad + 2) * 2, outerR);
+  ctx.fillStyle = "#faf4f6";
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+
+  roundRectPath(ctx, x - matPad - 2, y - matPad - 2, w + (matPad + 2) * 2, h + (matPad + 2) * 2, outerR);
+  ctx.strokeStyle = "#c882a0";
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  roundRectPath(ctx, x - 2, y - 2, w + 4, h + 4, radius + 2);
+  ctx.strokeStyle = "#d4a574";
+  ctx.lineWidth = 1.25;
+  ctx.stroke();
+
+  roundRectPath(ctx, x, y, w, h, radius);
+  ctx.clip();
+  ctx.drawImage(img, x, y, w, h);
+  ctx.restore();
+
+  page5FrameLayout = {
+    outerX: x - matPad - 2,
+    outerY: y - matPad - 2,
+    outerW: w + (matPad + 2) * 2,
+    outerH: h + (matPad + 2) * 2,
+  };
+
+  return y + h + matPad + 18 * scaleY;
+}
+
+let page5Tex = null;
+let page5PhotoAnimT = 0;
+let page5FrameLayout = null;
+
+function pastelColorHex(c) {
+  return `#${c.toString(16).padStart(6, "0")}`;
+}
+
+function drawMiniFlower(ctx, x, y, size, colorHex, rotation, alpha) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.globalAlpha = alpha;
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    ctx.fillStyle = colorHex;
+    ctx.beginPath();
+    ctx.ellipse(
+      Math.cos(a) * size * 0.52,
+      Math.sin(a) * size * 0.52,
+      size * 0.4,
+      size * 0.28,
+      a,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  }
+  ctx.fillStyle = "#fffaf8";
+  ctx.beginPath();
+  ctx.arc(0, 0, size * 0.17, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawPhotoBorderFlowers(ctx, t, frame) {
+  const { outerX, outerY, outerW, outerH } = frame;
+  const pad = 5;
+  const spots = [
+    [0, 0],
+    [0.5, 0],
+    [1, 0],
+    [1, 0.33],
+    [1, 0.66],
+    [1, 1],
+    [0.5, 1],
+    [0, 1],
+    [0, 0.66],
+    [0, 0.33],
+    [0.12, 0.06],
+    [0.88, 0.06],
+    [0.88, 0.94],
+    [0.12, 0.94],
+  ];
+
+  for (let i = 0; i < spots.length; i++) {
+    const [u, v] = spots[i];
+    const phase = i * 0.85;
+    const bob = Math.sin(t * 2.5 + phase) * 3;
+    const sway = Math.cos(t * 1.7 + phase) * 2.5;
+    const pulse = 0.8 + Math.sin(t * 3.2 + phase) * 0.2;
+    const edgeX = u < 0.5 ? -pad : u > 0.5 ? pad : 0;
+    const edgeY = v < 0.5 ? -pad : v > 0.5 ? pad : 0;
+    const x = outerX + u * outerW + edgeX + sway * (v === 0 || v === 1 ? 1 : 0.3);
+    const y = outerY + v * outerH + edgeY + bob * (u === 0 || u === 1 ? 1 : 0.3);
+    const palette = i % 4 === 0 ? PASTEL_OTHERS : PASTEL_PINKS;
+    const color = palette[i % palette.length];
+    drawMiniFlower(
+      ctx,
+      x,
+      y,
+      8 * pulse,
+      pastelColorHex(color),
+      t * 0.4 + phase,
+      0.72 + Math.sin(t * 2.2 + phase) * 0.15
+    );
+  }
+}
+
+function paintPage5(animT) {
+  if (!page5Tex) return;
+  const { ctx, tex, texW, texH } = page5Tex;
+  page5FrameLayout = null;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, texW, texH);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+
+  const scaleY = texH / 680;
+  const maxTextW = texW - PAGE_PAD_X * 2;
+  let cursorY = null;
+
+  const textH = measurePage5TextHeight(ctx, scaleY, maxTextW);
+  let blockH = textH;
+  if (page5Photo?.complete && page5Photo.naturalWidth > 0) {
+    blockH += page5PhotoLayout(texW, scaleY, page5Photo).blockH;
+  }
+  const topY = Math.max(28 * scaleY, (texH - blockH) / 2);
+  if (page5Photo?.complete && page5Photo.naturalWidth > 0) {
+    cursorY = drawPage5PhotoFrame(ctx, texW, scaleY, page5Photo, topY);
+  } else {
+    cursorY = topY;
+  }
+
+  if (page5FrameLayout) {
+    drawPhotoBorderFlowers(ctx, animT, page5FrameLayout);
+  }
+
+  for (const line of PAGES[4]) {
+    ctx.fillStyle = line.color;
+    ctx.font = line.font;
+    const sublines = wrapPageTextLines(ctx, line.text, maxTextW);
+    const lineStep = (line.leading ?? 34) * scaleY;
+
+    if (cursorY === null) {
+      cursorY = (line.y ?? 185) * scaleY;
+    } else if (line.y != null) {
+      cursorY = Math.max(line.y * scaleY, cursorY);
+    } else {
+      cursorY += (line.leading ?? 34) * scaleY * 0.45;
+    }
+
+    for (const subline of sublines) {
+      ctx.fillText(subline, texW / 2, cursorY);
+      cursorY += lineStep;
+    }
+  }
+
+  tex.needsUpdate = true;
+}
+
+function createPage5Texture() {
+  const texW = PAGE_TEX_W;
+  const texH = Math.round(texW * (CARD_H / CARD_W));
+  const canvas = document.createElement("canvas");
+  canvas.width = texW;
+  canvas.height = texH;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = false;
+  page5Tex = { canvas, ctx: canvas.getContext("2d"), tex, texW, texH };
+  paintPage5(0);
+  return tex;
+}
+
+function updatePage5PhotoFlowers(dt) {
+  if (!page5Tex || !page5Photo?.complete) return;
+  const onPage5 =
+    opened &&
+    !closing &&
+    !pageAnim &&
+    currentPage === 2 &&
+    spreadPairState(2).visible;
+  if (!onPage5) return;
+  page5PhotoAnimT += dt;
+  paintPage5(page5PhotoAnimT);
+}
+
 function makePageTexture(pageIndex) {
+  if (pageIndex === 4) {
+    if (page5Tex) {
+      paintPage5(0);
+      return page5Tex.tex;
+    }
+    return createPage5Texture();
+  }
+
   const texW = PAGE_TEX_W;
   const texH = Math.round(texW * (CARD_H / CARD_W));
   const c = document.createElement("canvas");
@@ -751,6 +1049,8 @@ function makePageTexture(pageIndex) {
       cursorY = (line.y ?? 185) * scaleY;
     } else if (line.y != null) {
       cursorY = Math.max(line.y * scaleY, cursorY);
+    } else {
+      cursorY += (line.leading ?? 34) * scaleY * 0.45;
     }
 
     for (const subline of sublines) {
@@ -768,6 +1068,39 @@ function makePageTexture(pageIndex) {
 }
 
 const pageTextures = PAGES.map((_, i) => makePageTexture(i));
+
+function refreshPageTexture(pageIndex) {
+  if (pageIndex === 4 && page5Tex) {
+    paintPage5(page5PhotoAnimT);
+    pageTextures[4] = page5Tex.tex;
+    const flipSlot = FLIP_PAGE_TEXTURE_INDEX.indexOf(4);
+    if (flipSlot >= 0 && pageEntities[flipSlot]) {
+      pageEntities[flipSlot].mat.map = page5Tex.tex;
+      pageEntities[flipSlot].mat.needsUpdate = true;
+    }
+    return;
+  }
+  const prev = pageTextures[pageIndex];
+  if (prev) prev.dispose();
+  pageTextures[pageIndex] = makePageTexture(pageIndex);
+  const flipSlot = FLIP_PAGE_TEXTURE_INDEX.indexOf(pageIndex);
+  if (flipSlot >= 0 && pageEntities[flipSlot]) {
+    pageEntities[flipSlot].mat.map = pageTextures[pageIndex];
+    pageEntities[flipSlot].mat.needsUpdate = true;
+  }
+}
+
+function loadPage5Photo() {
+  const img = new Image();
+  img.onload = () => {
+    page5Photo = img;
+    refreshPageTexture(4);
+  };
+  img.onerror = () => {
+    console.warn("Could not load page 5 photo:", PAGE5_PHOTO_SRC);
+  };
+  img.src = PAGE5_PHOTO_SRC;
+}
 
 function makePageEntity(texture) {
   const group = new THREE.Group();
@@ -792,14 +1125,29 @@ function makePageEntity(texture) {
 }
 
 function setPagesOpacity(opacity) {
-  for (const { mat } of pageEntities) {
-    mat.opacity = opacity;
-    mat.transparent = opacity < 1;
-    mat.depthWrite = opacity >= 0.99;
+  for (let i = 0; i < FLIP_PAGE_COUNT; i++) {
+    const { mat } = pageEntities[i];
+    if (LEFT_SPREAD_TEXTURE_BY_VIEW[i] != null) {
+      const pair = spreadPairState(i);
+      if (!pair.visible) {
+        mat.opacity = 0;
+        mat.transparent = true;
+        mat.depthWrite = false;
+      } else {
+        mat.opacity = opacity * pair.fade;
+        mat.transparent = opacity < 1 || pair.fade < 1;
+        mat.depthWrite = opacity >= 0.99 && pair.fade >= 0.99;
+      }
+    } else {
+      mat.opacity = opacity;
+      mat.transparent = opacity < 1;
+      mat.depthWrite = opacity >= 0.99;
+    }
     mat.needsUpdate = true;
   }
   if (leftSpreadPage) {
-    const spreadShown = LEFT_SPREAD_TEXTURE_BY_VIEW[currentPage] != null;
+    const viewKey = leftSpreadViewKey();
+    const spreadShown = viewKey != null && spreadPairState(viewKey).visible;
     leftSpreadPage.mat.opacity = spreadShown ? opacity : 0;
     leftSpreadPage.mat.transparent = opacity < 1 || !spreadShown;
     leftSpreadPage.mat.depthWrite = spreadShown && opacity >= 0.99;
@@ -817,15 +1165,19 @@ function syncPageVisibility() {
     if (pageAnim) {
       const { from, to, flipIndex } = pageAnim;
       if (i === flipIndex) show = true;
-      else if (to > from && i === to) show = true;
+      else if (to > from && i === to) show = shouldShowSpreadRight(to);
       else if (to < from && (i === from || i === flipIndex)) show = true;
     } else {
       show = i === currentPage;
+      if (show && LEFT_SPREAD_TEXTURE_BY_VIEW[i] != null) {
+        show = shouldShowSpreadRight(i);
+      }
     }
 
     group.visible = show;
   }
   syncLeftSpreadPage();
+  syncSpreadRightMaterials();
 }
 
 // ── card — pivot at centre, matches sketch ───────────────────
@@ -1007,6 +1359,8 @@ coverGroup.add(crease);
 
 leftPanelCake = createLeftPanelCake(coverGroup);
 leftSpreadPage = createLeftSpreadPage(coverGroup, pageTextures[1]);
+
+loadPage5Photo();
 
 // start slightly open
 coverHinge.rotation.y = -FULL_OPEN * SLIGHT_OPEN;
@@ -1248,6 +1602,7 @@ function animate() {
     const { flipIndex, startAngle, endAngle } = pageAnim;
     pageHinges[flipIndex].rotation.y =
       startAngle + (endAngle - startAngle) * e;
+    syncPageVisibility();
 
     if (pageAnim.t >= 1) {
       finishPageFlip();
@@ -1255,6 +1610,7 @@ function animate() {
   }
 
   updateLeftPanelCake(dt);
+  updatePage5PhotoFlowers(dt);
 
   if (opened && !closing && flatT < 1) {
     flatT = Math.min(1, flatT + dt * 0.55);
