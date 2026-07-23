@@ -7,8 +7,8 @@ const PAPER_EDGE_COLOR = 0x6b5c64;
 const PAPER_EDGE_OPACITY = 0.95;
 const FULL_OPEN = Math.PI * 0.92;
 const SLIGHT_OPEN = 0.03;
-const FRONT_TEXT_W = CARD_W * 0.78;
-const FRONT_TEXT_H = CARD_H * 0.36;
+const FRONT_TEXT_W = CARD_W * 0.94;
+const FRONT_TEXT_H = CARD_H * 0.48;
 const PAGE_W = CARD_W;
 const PAGE_H = CARD_H;
 const PAGE_FLIP_ANGLE = FULL_OPEN;
@@ -18,7 +18,7 @@ const PAGE_STACK_STEP = 0.016;
 // Edit page content here — each page is an array of text lines.
 const PAGES = [
   [
-    { text: "Happy Birthday,", color: "#8c7882", font: "400 46px Georgia, serif", y: 270 },
+    { text: "Happy 20th Birthday,", color: "#8c7882", font: "400 46px Georgia, serif", y: 270 },
     { text: "Trixie", color: "#c882a0", font: "italic 52px Georgia, serif", y: 330 },
     { text: "Wishing you a day filled with joy,", color: "#a08f99", font: "400 24px Georgia, serif", y: 410 },
     { text: "love, and beautiful moments.", color: "#a08f99", font: "400 24px Georgia, serif", y: 445 },
@@ -47,6 +47,7 @@ const PASTEL_OTHERS = [
 
 const wrap = document.getElementById("canvas-wrap");
 const hint = document.getElementById("hint");
+const musicToggle = document.getElementById("music-toggle");
 const navPrev = document.getElementById("nav-prev");
 const navNext = document.getElementById("nav-next");
 const navPrevWrap = document.getElementById("nav-prev-wrap");
@@ -96,6 +97,55 @@ let flatStartView = null;
 let pan = { x: 0, y: 0 };
 let currentPage = 0;
 let pageAnim = null;
+
+const birthdayMusic = new Audio("audio/happy-birthday-lofi.mp3");
+birthdayMusic.loop = true;
+birthdayMusic.preload = "auto";
+birthdayMusic.volume = 0.35;
+let musicEnabled = true;
+
+function syncMusicToggleUi() {
+  musicToggle.setAttribute("aria-pressed", musicEnabled ? "true" : "false");
+  musicToggle.setAttribute(
+    "aria-label",
+    musicEnabled ? "Turn music off" : "Turn music on"
+  );
+}
+
+function setMusicToggleVisible(visible) {
+  musicToggle.classList.toggle("hidden", !visible);
+}
+
+function startBirthdayMusic(fromBeginning = false) {
+  if (!musicEnabled) return;
+  if (fromBeginning) birthdayMusic.currentTime = 0;
+  birthdayMusic.play().catch(() => {});
+}
+
+function pauseBirthdayMusic() {
+  birthdayMusic.pause();
+}
+
+function stopBirthdayMusic() {
+  birthdayMusic.pause();
+  birthdayMusic.currentTime = 0;
+}
+
+function toggleBirthdayMusic() {
+  musicEnabled = !musicEnabled;
+  syncMusicToggleUi();
+  if (musicEnabled && opened && !closing) {
+    startBirthdayMusic(false);
+  } else {
+    pauseBirthdayMusic();
+  }
+}
+
+syncMusicToggleUi();
+musicToggle.addEventListener("click", (e) => {
+  e.stopPropagation();
+  toggleBirthdayMusic();
+});
 
 function easeOut(t) {
   return 1 - (1 - t) ** 3;
@@ -199,6 +249,228 @@ function finishTextTexture(tex, { mipmaps = false } = {}) {
   return tex;
 }
 
+function drawCenteredMixedText(ctx, cx, y, segments, { baseline = "middle" } = {}) {
+  const prevAlign = ctx.textAlign;
+  const prevBaseline = ctx.textBaseline;
+  const prevSpacing = ctx.letterSpacing;
+  ctx.textAlign = "left";
+  ctx.textBaseline = baseline;
+
+  let total = 0;
+  const widths = [];
+  for (const seg of segments) {
+    ctx.font = seg.font;
+    ctx.letterSpacing = seg.letterSpacing ?? "0px";
+    const w = ctx.measureText(seg.text).width;
+    widths.push(w);
+    total += w;
+  }
+
+  let x = cx - total / 2;
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    ctx.font = seg.font;
+    ctx.fillStyle = seg.color;
+    ctx.letterSpacing = seg.letterSpacing ?? "0px";
+    ctx.fillText(seg.text, x, y);
+    x += widths[i];
+  }
+
+  ctx.textAlign = prevAlign;
+  ctx.textBaseline = prevBaseline;
+  ctx.letterSpacing = prevSpacing;
+}
+
+// Inside cover: mesh uses rotation.y = π, so +x here moves toward the outer left of the spread.
+const LEFT_CAKE_X = CARD_W * 0.01;
+const LEFT_CAKE_Y = 0.04;
+const LEFT_CAKE_PLANE_W = CARD_W * 0.9;
+const LEFT_CAKE_POP_DELAY = 1;
+
+function easeOutBack(t) {
+  const c1 = 1.15;
+  const c3 = c1 + 1;
+  return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
+}
+
+function drawSoftFlame(ctx, x, y, t, phase) {
+  const flicker = Math.sin(t * 6 + phase) * 1.5;
+  const fy = y + flicker;
+  const g = ctx.createRadialGradient(x, fy, 0, x, fy, 12);
+  g.addColorStop(0, "#fff8f0");
+  g.addColorStop(0.55, "#ffd4b8");
+  g.addColorStop(1, "rgba(200, 130, 160, 0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(x, fy, 5, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawCandleDigit(ctx, char, x, surfaceY, t, phase) {
+  const stickH = 11;
+  const stickTop = surfaceY - stickH - 6;
+
+  ctx.fillStyle = "#fff9fb";
+  ctx.beginPath();
+  ctx.roundRect(x - 3, stickTop, 6, stickH, 2);
+  ctx.fill();
+  ctx.strokeStyle = "#c882a0";
+  ctx.lineWidth = 1.25;
+  ctx.stroke();
+
+  ctx.font = 'italic 500 44px "Cormorant Garamond", Georgia, serif';
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.fillStyle = "#c882a0";
+  ctx.fillText(char, x, stickTop - 2);
+
+  drawSoftFlame(ctx, x, stickTop - 48, t, phase);
+}
+
+function drawCakeTier(ctx, cx, hw, y, h, fill) {
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.roundRect(cx - hw, y, hw * 2, h, 12);
+  ctx.fill();
+  ctx.strokeStyle = "#c882a0";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawLeftPanelCake(ctx, w, h, t, enterT) {
+  ctx.clearRect(0, 0, w, h);
+  if (enterT <= 0.01) return;
+
+  const enter = easeOut(enterT);
+  const pop = easeOutBack(enterT);
+  const cx = w * 0.5;
+  const cy = h * 0.56;
+  const tierH = 46;
+  const bottomY = cy + 14;
+
+  ctx.save();
+  ctx.globalAlpha = enter;
+  const slide = (1 - enter) * 36;
+  ctx.translate(cx, cy + slide);
+  ctx.scale(pop * 1.24, pop * 1.24);
+  ctx.translate(-cx, -cy);
+  ctx.translate(0, Math.sin(t * 1.5) * 2.5 * enter);
+
+  ctx.fillStyle = "rgba(180, 120, 140, 0.15)";
+  ctx.beginPath();
+  ctx.ellipse(cx, bottomY + tierH + 10, w * 0.21, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const midY = bottomY - tierH;
+  const topY = midY - tierH;
+
+  drawCakeTier(ctx, cx, w * 0.19, bottomY, tierH, "#e6d9cf");
+  drawCakeTier(ctx, cx, w * 0.175, midY, tierH, "#efe8e2");
+  drawCakeTier(ctx, cx, w * 0.16, topY, tierH, "#f5e6eb");
+
+  drawCandleDigit(ctx, "2", cx - 30, topY, t, 0);
+  drawCandleDigit(ctx, "0", cx + 30, topY, t, 1.2);
+
+  ctx.restore();
+}
+
+function refreshLeftPanelCakeTexture() {
+  if (!leftPanelCake) return;
+  drawLeftPanelCake(
+    leftPanelCake.ctx,
+    leftPanelCake.canvas.width,
+    leftPanelCake.canvas.height,
+    leftPanelCake.animT,
+    1
+  );
+  leftPanelCake.tex.needsUpdate = true;
+}
+
+function createLeftPanelCake(coverGroup) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 560;
+  const ctx = canvas.getContext("2d");
+  drawLeftPanelCake(ctx, canvas.width, canvas.height, 0, 1);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+
+  const planeW = LEFT_CAKE_PLANE_W;
+  const planeH = planeW * (560 / 512);
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeH), mat);
+  mesh.renderOrder = 50;
+  mesh.rotation.y = Math.PI;
+
+  const root = new THREE.Group();
+  root.position.set(LEFT_CAKE_X, LEFT_CAKE_Y, -(THICK / 2 + 0.012));
+  root.add(mesh);
+  coverGroup.add(root);
+  root.visible = false;
+
+  return { root, mesh, canvas, ctx, tex, animT: 0, enterT: 0, waitT: 0 };
+}
+
+let leftPanelCake = null;
+
+function updateLeftPanelCake(dt) {
+  if (!leftPanelCake) return;
+  const onFirstPage = currentPage === 0 && !pageAnim;
+  const letterOpen =
+    onFirstPage && !closing && (opening || opened);
+  const popReady = onFirstPage && opened && !opening && !closing && openT >= 1;
+
+  leftPanelCake.root.visible = letterOpen;
+  if (!letterOpen) {
+    leftPanelCake.mesh.scale.setScalar(1);
+    leftPanelCake.enterT = 0;
+    leftPanelCake.waitT = 0;
+    drawLeftPanelCake(
+      leftPanelCake.ctx,
+      leftPanelCake.canvas.width,
+      leftPanelCake.canvas.height,
+      leftPanelCake.animT,
+      0
+    );
+    leftPanelCake.tex.needsUpdate = true;
+    return;
+  }
+
+  leftPanelCake.animT += dt;
+  if (popReady) {
+    leftPanelCake.waitT += dt;
+  }
+  if (leftPanelCake.waitT >= LEFT_CAKE_POP_DELAY) {
+    leftPanelCake.enterT = Math.min(1, leftPanelCake.enterT + dt * 2.4);
+  } else {
+    leftPanelCake.enterT = 0;
+  }
+
+  drawLeftPanelCake(
+    leftPanelCake.ctx,
+    leftPanelCake.canvas.width,
+    leftPanelCake.canvas.height,
+    leftPanelCake.animT,
+    leftPanelCake.enterT
+  );
+  leftPanelCake.tex.needsUpdate = true;
+  if (leftPanelCake.enterT >= 1) {
+    const pulse = 1 + Math.sin(leftPanelCake.animT * 2.2) * 0.012;
+    leftPanelCake.mesh.scale.set(pulse, pulse, 1);
+  } else {
+    leftPanelCake.mesh.scale.set(1, 1, 1);
+  }
+}
+
 const COVER_TEX_LOGICAL_W = 2048;
 const COVER_TEX_MAX_SCALE = 2;
 
@@ -227,14 +499,31 @@ function makeFrontCoverTexture() {
   const cy = texH / scale / 2;
 
   ctx.fillStyle = "#7a6b72";
-  ctx.font = '400 118px "Cormorant Garamond", Georgia, serif';
-  ctx.letterSpacing = "0.08em";
-  ctx.fillText("Happy Birthday,", cx, cy - 72);
+  drawCenteredMixedText(ctx, cx, cy - 96, [
+    {
+      text: "Happy ",
+      font: '400 132px "Cormorant Garamond", Georgia, serif',
+      color: "#7a6b72",
+      letterSpacing: "0.04em",
+    },
+    {
+      text: "20th",
+      font: '500 174px "Cormorant Garamond", Georgia, serif',
+      color: "#7a6b72",
+      letterSpacing: "0.03em",
+    },
+    {
+      text: " Birthday,",
+      font: '400 132px "Cormorant Garamond", Georgia, serif',
+      color: "#7a6b72",
+      letterSpacing: "0.04em",
+    },
+  ]);
 
   ctx.fillStyle = "#b87a96";
-  ctx.font = 'italic 500 168px "Cormorant Garamond", Georgia, serif';
-  ctx.letterSpacing = "0.04em";
-  ctx.fillText("Trixie", cx, cy + 62);
+  ctx.font = 'italic 500 236px "Cormorant Garamond", Georgia, serif';
+  ctx.letterSpacing = "0.03em";
+  ctx.fillText("Trixie", cx, cy + 86);
 
   return finishTextTexture(new THREE.CanvasTexture(c), { mipmaps: true });
 }
@@ -395,6 +684,7 @@ syncPageStack();
 function resetPages() {
   currentPage = 0;
   pageAnim = null;
+  updateLeftPanelCake(0);
   for (const hinge of pageHinges) {
     hinge.rotation.y = 0;
   }
@@ -447,6 +737,7 @@ function closeLetter() {
   renderer.domElement.style.cursor = "pointer";
   updateNav();
   hint.textContent = "tap letter to open";
+  setMusicToggleVisible(false);
 }
 
 // cover — same size, hinged on left spine, sits in front of back
@@ -482,9 +773,11 @@ async function loadFrontCoverText() {
   await Promise.all([
     document.fonts.load('400 118px "Cormorant Garamond"'),
     document.fonts.load('italic 500 168px "Cormorant Garamond"'),
+    document.fonts.load('italic 500 48px "Cormorant Garamond"'),
   ]);
   frontCoverFontsReady = true;
   refreshFrontCoverTexture();
+  refreshLeftPanelCakeTexture();
 }
 
 loadFrontCoverText();
@@ -496,6 +789,8 @@ const crease = new THREE.Mesh(
 );
 crease.position.set(-CARD_W / 2 + 0.004, 0, 0);
 coverGroup.add(crease);
+
+leftPanelCake = createLeftPanelCake(coverGroup);
 
 // start slightly open
 coverHinge.rotation.y = -FULL_OPEN * SLIGHT_OPEN;
@@ -670,6 +965,8 @@ function openLetter() {
   };
   hint.textContent = "drag to move";
   hint.classList.remove("hidden");
+  setMusicToggleVisible(true);
+  startBirthdayMusic(true);
   setTimeout(() => burstFlowers(100), 450);
   setTimeout(() => burstFlowers(50), 750);
 }
@@ -714,6 +1011,7 @@ function animate() {
       opened = false;
       openT = 0;
       flatT = 0;
+      stopBirthdayMusic();
       resetPages();
       coverHinge.rotation.y = -FULL_OPEN * SLIGHT_OPEN;
       pan = { x: 0, y: 0 };
@@ -733,6 +1031,8 @@ function animate() {
       finishPageFlip();
     }
   }
+
+  updateLeftPanelCake(dt);
 
   if (opened && !closing && flatT < 1) {
     flatT = Math.min(1, flatT + dt * 0.55);
