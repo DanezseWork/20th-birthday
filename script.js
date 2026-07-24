@@ -1422,6 +1422,90 @@ function burstFlowers(n) {
   }
 }
 
+let photoBloomCooldownUntil = 0;
+
+function getPage5PhotoWorldCenter() {
+  if (!page5FrameLayout || !page5Tex || !pageEntities[2]) return null;
+  const { outerX, outerY, outerW, outerH } = page5FrameLayout;
+  const { texW, texH } = page5Tex;
+  const u = (outerX + outerW * 0.5) / texW;
+  const v = 1 - (outerY + outerH * 0.5) / texH;
+  const local = new THREE.Vector3(
+    (u - 0.5) * CARD_W,
+    (v - 0.5) * CARD_H,
+    THICK / 2 + 0.02
+  );
+  return pageEntities[2].mesh.localToWorld(local);
+}
+
+function hitPage5Photo(clientX, clientY) {
+  if (
+    !opened ||
+    closing ||
+    pageAnim ||
+    currentPage !== 2 ||
+    !page5FrameLayout ||
+    !page5Tex ||
+    !pageEntities[2]
+  ) {
+    return false;
+  }
+  if (!spreadPairState(2).visible) return false;
+
+  setPointerFromClient(clientX, clientY);
+  const hits = ray.intersectObject(pageEntities[2].mesh, false);
+  if (!hits.length || !hits[0].uv) return false;
+
+  const { x: u, y: v } = hits[0].uv;
+  const { texW, texH } = page5Tex;
+  const px = u * texW;
+  const py = (1 - v) * texH;
+  const { outerX, outerY, outerW, outerH } = page5FrameLayout;
+  return (
+    px >= outerX &&
+    px <= outerX + outerW &&
+    py >= outerY &&
+    py <= outerY + outerH
+  );
+}
+
+/** Same burst style as opening, centered on the photo. */
+function burstFlowersFromPhoto(n = 60) {
+  const center = getPage5PhotoWorldCenter();
+  if (!center) return;
+
+  for (let i = 0; i < n; i++) {
+    setTimeout(() => {
+      const color =
+        Math.random() < 0.75
+          ? PASTEL_PINKS[(Math.random() * PASTEL_PINKS.length) | 0]
+          : PASTEL_OTHERS[(Math.random() * PASTEL_OTHERS.length) | 0];
+      const f = makeFlower(color);
+      const origin = center.clone().add(
+        new THREE.Vector3(
+          (Math.random() - 0.5) * 0.25,
+          (Math.random() - 0.5) * 0.2,
+          Math.random() * 0.08
+        )
+      );
+      f.position.copy(origin);
+      f.scale.setScalar(0.7 + Math.random() * 0.8);
+      scene.add(f);
+      const angle = Math.random() * Math.PI * 2;
+      const spd = 0.018 + Math.random() * 0.04;
+      flowers.push({
+        mesh: f,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd + 0.015,
+        vz: Math.random() * 0.015,
+        rot: Math.random() * 6.28,
+        rs: (Math.random() - 0.5) * 0.06,
+        life: 1,
+      });
+    }, i * 14);
+  }
+}
+
 // ── interaction ──────────────────────────────────────────────
 const ray = new THREE.Raycaster();
 const ptr = new THREE.Vector2();
@@ -1429,6 +1513,10 @@ let panning = false;
 let panPointerId = null;
 let grabHitX = 0;
 let grabHitY = 0;
+let panStartClientX = 0;
+let panStartClientY = 0;
+let panDragged = false;
+let photoPointerDown = false;
 
 function setPointerFromClient(clientX, clientY) {
   ptr.x = (clientX / window.innerWidth) * 2 - 1;
@@ -1470,6 +1558,10 @@ function onPointerDown(e) {
     panPointerId = e.pointerId;
     grabHitX = hit.x;
     grabHitY = hit.y;
+    panStartClientX = e.clientX;
+    panStartClientY = e.clientY;
+    panDragged = false;
+    photoPointerDown = hitPage5Photo(e.clientX, e.clientY);
     if (e.pointerType === "touch") e.preventDefault();
     renderer.domElement.setPointerCapture(e.pointerId);
     renderer.domElement.style.cursor = "grabbing";
@@ -1485,6 +1577,12 @@ function onPointerMove(e) {
   if (panning && e.pointerId === panPointerId) {
     const hit = getPanPlaneHit(e.clientX, e.clientY);
     if (!hit) return;
+
+    const dragPx = Math.hypot(
+      e.clientX - panStartClientX,
+      e.clientY - panStartClientY
+    );
+    if (dragPx > 12) panDragged = true;
 
     const damping = panDamping();
     const dx = (hit.x - grabHitX) * damping;
@@ -1505,16 +1603,26 @@ function onPointerMove(e) {
 
 function onPointerUp(e) {
   if (panning && e.pointerId === panPointerId) {
+    const tapPhoto = photoPointerDown && !panDragged;
     panning = false;
     panPointerId = null;
+    photoPointerDown = false;
     renderer.domElement.releasePointerCapture(e.pointerId);
+    if (tapPhoto && performance.now() >= photoBloomCooldownUntil) {
+      photoBloomCooldownUntil = performance.now() + 900;
+      burstFlowersFromPhoto(60);
+    }
     updateHoverCursor(e.clientX, e.clientY);
   }
 }
 
 function updateHoverCursor(clientX, clientY) {
   if (opened && flatT >= 1 && !closing && !panning && !pageAnim) {
-    renderer.domElement.style.cursor = hitLetter(clientX, clientY) ? "grab" : "default";
+    if (hitPage5Photo(clientX, clientY)) {
+      renderer.domElement.style.cursor = "pointer";
+    } else {
+      renderer.domElement.style.cursor = hitLetter(clientX, clientY) ? "grab" : "default";
+    }
   }
 }
 
